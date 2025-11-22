@@ -41,14 +41,13 @@ This project demonstrates real-world skills in:
 
 ## 📦 **Repository Structure**
 
-- crypto-pipeline/
-│
-├── fetch_crypto.py # Python ETL script
-├── requirements.txt # Dependencies
-│
-└── .github/workflows/
-└── crypto.yml # Automation workflow (hourly)
-
+- crypto-pipeline/ <br>
+│ <br>
+├── fetch_crypto.py # Python ETL script <br>
+├── requirements.txt # Dependencies <br>
+│ <br>
+└── .github/workflows/ <br>
+└── crypto.yml # Automation workflow (hourly) <br>
 
 ---
 
