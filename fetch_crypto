@@ -1,0 +1,91 @@
+import mysql.connector
+import requests
+from datetime import datetime
+import json
+import os
+
+# Load secrets from GitHub Actions env vars
+HOST = os.environ["AIVEN_HOST"]
+PORT = int(os.environ["AIVEN_PORT"])
+USER = os.environ["AIVEN_USER"]
+PASSWORD = os.environ["AIVEN_PASS"]
+DB = os.environ["AIVEN_DB"]
+
+# Connect to Aiven MySQL
+conn = mysql.connector.connect(
+    host=HOST,
+    port=PORT,
+    user=USER,
+    password=PASSWORD,
+    database=DB,
+    ssl_ca=None
+)
+
+cursor = conn.cursor()
+
+# Create tables if not exists
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS symbols (
+    id VARCHAR(100) PRIMARY KEY,
+    symbol VARCHAR(50),
+    name VARCHAR(200)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS prices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    coin_id VARCHAR(100),
+    fetched_at DATETIME,
+    price_usd DOUBLE,
+    market_cap DOUBLE,
+    volume_24h DOUBLE,
+    extra JSON
+);
+""")
+
+conn.commit()
+
+# Fetch crypto market data
+API_URL = "https://api.coingecko.com/api/v3/coins/markets"
+COINS = ["bitcoin", "ethereum", "ripple"]
+
+params = {
+    "vs_currency": "usd",
+    "ids": ",".join(COINS),
+    "order": "market_cap_desc",
+    "per_page": len(COINS),
+    "page": 1,
+    "sparkline": "false"
+}
+
+data = requests.get(API_URL, params=params).json()
+fetched_at = datetime.utcnow()
+
+# Insert data into DB
+for coin in data:
+    cursor.execute("""
+        INSERT INTO symbols (id, symbol, name)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE 
+            symbol = VALUES(symbol), 
+            name = VALUES(name)
+    """, (coin["id"], coin["symbol"], coin["name"]))
+
+    cursor.execute("""
+        INSERT INTO prices 
+        (coin_id, fetched_at, price_usd, market_cap, volume_24h, extra)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        coin["id"],
+        fetched_at,
+        coin["current_price"],
+        coin["market_cap"],
+        coin["total_volume"],
+        json.dumps(coin)
+    ))
+
+conn.commit()
+conn.close()
+
+print("Inserted:", len(data), "rows")
