@@ -18,12 +18,14 @@ conn = mysql.connector.connect(
     user=USER,
     password=PASSWORD,
     database=DB,
-    ssl_ca=None
+    ssl_ca=None     # Aiven MySQL connector does not need CA file for GitHub Actions
 )
 
 cursor = conn.cursor()
 
-# Create tables if not exists
+# -------------------------
+# CREATE TABLES IF NOT EXISTS
+# -------------------------
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS symbols (
     id VARCHAR(100) PRIMARY KEY,
@@ -46,7 +48,10 @@ CREATE TABLE IF NOT EXISTS prices (
 
 conn.commit()
 
-# Fetch crypto market data
+
+# -------------------------
+# FETCH CRYPTO DATA
+# -------------------------
 API_URL = "https://api.coingecko.com/api/v3/coins/markets"
 COINS = ["bitcoin", "ethereum", "ripple"]
 
@@ -62,16 +67,18 @@ params = {
 data = requests.get(API_URL, params=params).json()
 fetched_at = datetime.utcnow()
 
-# Insert data into DB
+# -------------------------
+# INSERT DATA INTO MYSQL
+# -------------------------
 for coin in data:
+    # Upsert in symbols
     cursor.execute("""
         INSERT INTO symbols (id, symbol, name)
         VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE 
-            symbol = VALUES(symbol), 
-            name = VALUES(name)
+        ON DUPLICATE KEY UPDATE symbol=VALUES(symbol), name=VALUES(name)
     """, (coin["id"], coin["symbol"], coin["name"]))
 
+    # Insert price history
     cursor.execute("""
         INSERT INTO prices 
         (coin_id, fetched_at, price_usd, market_cap, volume_24h, extra)
@@ -88,4 +95,4 @@ for coin in data:
 conn.commit()
 conn.close()
 
-print("Inserted:", len(data), "rows")
+print("Inserted:", len(data), "rows at", fetched_at)
