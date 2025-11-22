@@ -1,0 +1,31 @@
+name: Crypto Pipeline
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"     # runs every 30 minutes
+  workflow_dispatch:          # manual trigger
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run crypto script
+      env:
+        AIVEN_HOST: ${{ secrets.AIVEN_HOST }}
+        AIVEN_PORT: ${{ secrets.AIVEN_PORT }}
+        AIVEN_USER: ${{ secrets.AIVEN_USER }}
+        AIVEN_PASS: ${{ secrets.AIVEN_PASS }}
+        AIVEN_DB: ${{ secrets.AIVEN_DB }}
+      run: python fetch_crypto.py
