@@ -2,7 +2,7 @@ name: Crypto Pipeline
 
 on:
   schedule:
-    - cron: "*/30 * * * *"     # runs every 30 minutes
+    - cron: 0 * * * *  # runs every 1 hour
   workflow_dispatch:          # manual trigger
 
 jobs:
